@@ -17,6 +17,11 @@ public class Health : MonoBehaviour
        
             if (_healthAmount <= 0f)
             {
+                GameObject created = Instantiate(transform.Find("Particle System").gameObject, transform.position, Quaternion.identity);
+                created.SetActive(true);
+                created.GetComponent<ParticleSystem>().Play();
+                Destroy(created, 5f);
+
                 GetComponent<Rigidbody2D>().velocity = Vector3.zero;
                 _healthAmount = 100f;
                 transform.position = new Vector3(0, 5, 0);

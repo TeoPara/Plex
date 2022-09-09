@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using Mirror;
+using System.Linq;
 
 public class Controls : NetworkBehaviour
 {
@@ -42,6 +43,27 @@ public class Controls : NetworkBehaviour
     Coroutine CurrentCoroutine = null;
     string CurrentAnimation = "none"; //none, falling, walk, attack, attack2
 
+    [SyncVar] float RColor;
+    [SyncVar] float GColor;
+    [SyncVar] float BColor;
+
+    void Start()
+    {
+        if (isLocalPlayer)
+            CmdGetRandomColor();
+        sr.color = new Color(RColor, GColor, BColor);
+    }
+    [Command] void CmdGetRandomColor()
+    {
+        RpcSetColor(UnityEngine.Random.Range(0f, 1f), UnityEngine.Random.Range(0f, 1f), UnityEngine.Random.Range(0f, 1f));
+    }
+    [ClientRpc] void RpcSetColor(float r, float g, float b)
+    {
+        RColor = r;
+        GColor = g;
+        BColor = b;
+        sr.color = new Color(r, g, b);
+    }
 
 
     [Command] void CmdDashEffect() => RpcDashEffect();
@@ -65,17 +87,6 @@ public class Controls : NetworkBehaviour
         }
     }
 
-    
-
-
-    bool InShootCooldown = false;
-    IEnumerator ShootCooldown()
-    {
-        if (InShootCooldown) yield break;
-        InShootCooldown = true;
-        yield return new WaitForSeconds(1f);
-        InShootCooldown = false;
-    }
 
     bool InDashCooldown = false;
     IEnumerator DashCooldown()
@@ -213,11 +224,26 @@ public class Controls : NetworkBehaviour
             }
         }
 
-        if (Input.GetKeyDown(KeyCode.T))
-            CmdToggleGun(!transform.Find("gun").gameObject.activeInHierarchy);
 
-        // we got gun
-        if (transform.Find("gun").gameObject.activeInHierarchy)
+        // attempt to pickupe an item
+        foreach(GameObject c in GameObject.FindGameObjectsWithTag("item"))
+        {
+            if (Input.GetKeyDown(KeyCode.E) && Vector3.Distance(transform.position, c.transform.position) < 1.25f)
+            {
+                if (HeldItem == null && Time.time - c.GetComponent<ItemScript>().LastDropped > 1f && c.GetComponent<ItemScript>().Pickupable && c.GetComponent<ItemScript>().IsBeingHeld == false)
+                {
+                    CmdPickupItem(c);
+                    break;
+                }
+            }
+        }
+
+        // drop an item
+        if (Input.GetKeyDown(KeyCode.Q) && HeldItem != null)
+            CmdDropItem();
+
+        // we got an item
+        if (HeldItem != null)
         {
             // rotating le gun
             
@@ -232,26 +258,31 @@ public class Controls : NetworkBehaviour
             {
                 if (cursorpos.x > transform.position.x)
                 {
-                    transform.Find("gun").position = transform.position + (cursorpos - transform.position).normalized;
+                    HeldItem.transform.position = transform.position + (cursorpos - transform.position).normalized;
                     CmdFlipGunSprite(false);
                 }
                 if (cursorpos.x < transform.position.x)
                 {
-                    transform.Find("gun").position = transform.position + (cursorpos - transform.position).normalized;
+                    HeldItem.transform.position = transform.position + (cursorpos - transform.position).normalized;
                     CmdFlipGunSprite(true);
                 }
 
-                Vector3 two = cursorpos - transform.Find("gun").position;
+                Vector3 two = cursorpos - HeldItem.transform.position;
                 Vector3 three = new Vector3(two.x / two.x, two.y / two.x);
 
-                transform.Find("gun").transform.eulerAngles = new Vector3(0, 0, Mathf.Atan(three.y) * Mathf.Rad2Deg);
+                HeldItem.transform.eulerAngles = new Vector3(0, 0, Mathf.Atan(three.y) * Mathf.Rad2Deg);
             }
 
             // shooting le gun
-            if (Input.GetMouseButtonDown(0) && InShootCooldown == false)
+            if (Input.GetMouseButtonDown(0) && HeldItem.GetComponent<ItemScript>().InInteractCooldown == false)
             {
-                CmdShootGun(transform.Find("gun").position, cursorpos);
-                StartCoroutine(ShootCooldown());
+                StartCoroutine(HeldItem.GetComponent<ItemScript>().InteractCooldown());
+                if (HeldItem.GetComponent<ItemScript>().ItemName == "sniper")
+                    CmdShootGun(HeldItem.transform.position, cursorpos, "sniper");
+                if (HeldItem.GetComponent<ItemScript>().ItemName == "landmine")
+                {
+                    CmdInteractLandmine();
+                }
             }
         }
         // we got no gun
@@ -265,18 +296,71 @@ public class Controls : NetworkBehaviour
         }
     }
 
+    [Command] void CmdInteractLandmine() => RpcInteractLandmine();
+    [ClientRpc] void RpcInteractLandmine()
+    {
+        HeldItem.GetComponent<ItemScript>().Interact();
+        GameObject todestroy = HeldItem;
 
-    [Command] void CmdToggleGun(bool b) => RpcToggleGun(b);
-    [ClientRpc] void RpcToggleGun(bool b) => transform.Find("gun").gameObject.SetActive(b);
+        // drop
+        GetComponent<NetworkTransformChild>().enabled = false;
+        GetComponent<NetworkTransformChild>().target = transform;
+        HeldItem.transform.SetParent(null);
+        HeldItem = null;
 
+        Destroy(todestroy);
+    }
+
+
+
+    GameObject HeldItem = null;
+
+    [Command] void CmdPickupItem(GameObject targetItem)
+    {
+        if (targetItem.GetComponent<ItemScript>().IsBeingHeld == true)
+            return;
+
+        targetItem.GetComponent<ItemScript>().IsBeingHeld = true;
+        RpcPickupItem(targetItem);
+    }
+    [ClientRpc] void RpcPickupItem(GameObject targetItem)
+    {
+        targetItem.GetComponent<ItemScript>().IsBeingHeld = true;
+        targetItem.transform.SetParent(transform);
+        targetItem.GetComponent<Rigidbody2D>().simulated = false;
+        targetItem.GetComponent<BoxCollider2D>().enabled = false;
+        HeldItem = targetItem;
+        GetComponent<NetworkTransformChild>().target = targetItem.transform;
+        GetComponent<NetworkTransformChild>().enabled = true;
+    }
+
+    [Command] void CmdDropItem() => RpcDropItem();
+    [ClientRpc]
+    void RpcDropItem()
+    {
+        GetComponent<NetworkTransformChild>().enabled = false;
+        GetComponent<NetworkTransformChild>().target = transform;
+        HeldItem.transform.SetParent(null);
+        HeldItem.GetComponent<ItemScript>().IsBeingHeld = false;
+        HeldItem.GetComponent<Rigidbody2D>().simulated = true;
+        HeldItem.GetComponent<Rigidbody2D>().velocity = rb.velocity;
+        HeldItem.GetComponent<BoxCollider2D>().enabled = true;
+        HeldItem.GetComponent<ItemScript>().LastDropped = Time.time;
+
+        HeldItem = null;
+    }
 
 
     [Command] void CmdFlipSprite(bool b) => RpcFlipSprite(b);
     [ClientRpc] void RpcFlipSprite(bool b) => sr.flipX = b;
 
     [Command] void CmdFlipGunSprite(bool b) => RpcFlipGunSprite(b);
-    [ClientRpc] void RpcFlipGunSprite(bool b) => transform.Find("gun").GetComponent<SpriteRenderer>().flipX = b;
-
+    [ClientRpc]
+    void RpcFlipGunSprite(bool b)
+    {
+        if (HeldItem != null)
+            HeldItem.GetComponent<SpriteRenderer>().flipX = b;
+    }
 
     [Command] void CmdFallAnimation() => RpcFallAnimation();
     [ClientRpc] void RpcFallAnimation()
@@ -310,7 +394,7 @@ public class Controls : NetworkBehaviour
 
 
     // shoot gun
-    [Command] void CmdShootGun(Vector3 GunPosition, Vector3 CursorPosition)
+    [Command] void CmdShootGun(Vector3 GunPosition, Vector3 CursorPosition, string gunType)
     {
         GameObject createdBullet = GameObject.Instantiate(Resources.Load<GameObject>("bullet"), GunPosition, Quaternion.identity);
         NetworkServer.Spawn(createdBullet);
@@ -329,9 +413,19 @@ public class Controls : NetworkBehaviour
                 {
                     if (c == gameObject)
                         continue;
-                    if (Vector3.Distance(c.transform.position, bullet.transform.position) < 0.5f)
+                    if (c.GetComponent<BoxCollider2D>().bounds.Contains(bullet.transform.position))
                     {
                         RpcSetHealth(c, c.GetComponent<Health>().HealthAmount - 10f, "none");
+
+                        Destroy(bullet);
+                        yield break;
+                    }
+                }
+                foreach(GameObject c in GameObject.FindObjectsOfType<GameObject>().Where(c => c.GetComponent<Break>() != null))
+                {
+                    if (c.GetComponent<BoxCollider2D>().bounds.Contains(bullet.transform.position))
+                    {
+                        RpcSetHealthPlatform(c.transform.position, c.GetComponent<Break>().Damage - 10f);
 
                         Destroy(bullet);
                         yield break;
@@ -342,7 +436,15 @@ public class Controls : NetworkBehaviour
                 yield return new WaitForEndOfFrame();
             }
         }
+
+        RpcShootGun();
     }
+    [ClientRpc] void RpcShootGun()
+    {
+        AudioSource.PlayClipAtPoint(Resources.Load<AudioClip>("shot"), transform.position, 1f);
+    }
+
+
 
 
     // melee attacking
@@ -370,7 +472,8 @@ public class Controls : NetworkBehaviour
                     continue;
                 if (c.transform.position.x < transform.position.x && Vector3.Distance(transform.position, c.transform.position) < 1.25f)
                 {
-                    RpcSetHealth(c, c.GetComponent<Health>().HealthAmount - 10, "softleft");
+                    RpcSetHealth(c, c.GetComponent<Health>().HealthAmount - 10, "none");
+                    RpcPlayPunchSound();
                 }
             }
         }
@@ -383,13 +486,24 @@ public class Controls : NetworkBehaviour
                     continue;
                 if (c.transform.position.x > transform.position.x && Vector3.Distance(transform.position, c.transform.position) < 1.25f)
                 {
-                    RpcSetHealth(c, c.GetComponent<Health>().HealthAmount - 10, "softright");
-
-                    c.GetComponent<Controls>().rb.AddForce(new Vector2(5, 3), ForceMode2D.Impulse);
+                    RpcSetHealth(c, c.GetComponent<Health>().HealthAmount - 10, "none");
+                    RpcPlayPunchSound();
                 }
             }
         }
     }
+
+    [ClientRpc] void RpcPlayPunchSound()
+    {
+        List<AudioClip> all = new List<AudioClip>();
+        all.Add(Resources.Load<AudioClip>("punch1"));
+        all.Add(Resources.Load<AudioClip>("punch2"));
+        all.Add(Resources.Load<AudioClip>("punch3"));
+        all.Add(Resources.Load<AudioClip>("punch4"));
+        AudioSource.PlayClipAtPoint(all[UnityEngine.Random.Range(0, all.Count)], transform.position, 1f);
+    }
+
+
     [ClientRpc] void RpcSetHealth(GameObject target, float amount, string knockback)
     {
         target.GetComponent<Health>().HealthAmount = amount;
@@ -408,6 +522,14 @@ public class Controls : NetworkBehaviour
             case "hardleft":
                 target.GetComponent<Rigidbody2D>().AddForce(new Vector2(-15f, 10f), ForceMode2D.Impulse);
                 break;
+        }
+    }
+    [ClientRpc] void RpcSetHealthPlatform(Vector3 target, float amount)
+    {
+        foreach(GameObject c in GameObject.FindObjectsOfType<GameObject>().Where(c => c.GetComponent<Break>() != null))
+        {
+            if (c.transform.position == target)
+                c.GetComponent<Break>().Damage = amount;
         }
     }
 
@@ -456,7 +578,20 @@ public class Controls : NetworkBehaviour
             if (i == sprites.Count - 1)
             {
                 if (once == false)
+                {
                     i = 0;
+                    
+                    if (CurrentAnimation == "walk")
+                    {
+                        List<AudioClip> all = new List<AudioClip>();
+                        all.Add(Resources.Load<AudioClip>("asteroid1"));
+                        all.Add(Resources.Load<AudioClip>("asteroid2"));
+                        all.Add(Resources.Load<AudioClip>("asteroid3"));
+                        all.Add(Resources.Load<AudioClip>("asteroid4"));
+                        all.Add(Resources.Load<AudioClip>("asteroid5"));
+                        AudioSource.PlayClipAtPoint(all[UnityEngine.Random.Range(0, all.Count)], transform.position, 1f);
+                    }
+                }
                 if (once)
                 {
                     sr.sprite = sprites[0];
