@@ -13,7 +13,6 @@ GameObject:
   - component: {fileID: 2385494048548911658}
   - component: {fileID: 4420321423216685536}
   - component: {fileID: 2806961121159998230}
-  - component: {fileID: 7892811398879969059}
   m_Layer: 3
   m_Name: landmine_placed
   m_TagString: item
@@ -147,25 +146,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2fe5478563729e1468172e28384f17ac, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  IsBeingHeld: 0
   Pickupable: 0
   ItemName: landmine
   InteractCooldownTime: 0
   InInteractCooldown: 0
   LastDropped: 0
---- !u!114 &7892811398879969059
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5775879983478285041}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9b91ecbcc199f4492b9a91e820070131, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  sceneId: 0
-  serverOnly: 0
-  visible: 0
-  m_AssetId: 0b83b59831e4e4c438d265b18d1df731
-  hasSpawned: 0
+  AmmoLeft: 0

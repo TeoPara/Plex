@@ -43,8 +43,8 @@ TrailRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5284127847303611891}
   m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
   m_MotionVectors: 0
@@ -55,7 +55,7 @@ TrailRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 0}
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -97,8 +97,8 @@ TrailRenderer:
       m_RotationOrder: 4
     colorGradient:
       serializedVersion: 2
-      key0: {r: 0.9987322, g: 1, b: 0, a: 1}
-      key1: {r: 1, g: 0.99149597, b: 0.6509804, a: 1}
+      key0: {r: 1, g: 0.9048885, b: 0, a: 1}
+      key1: {r: 1, g: 0.9048885, b: 0, a: 0}
       key2: {r: 0, g: 0, b: 0, a: 0}
       key3: {r: 0, g: 0, b: 0, a: 0}
       key4: {r: 0, g: 0, b: 0, a: 0}
@@ -114,10 +114,10 @@ TrailRenderer:
       ctime6: 0
       ctime7: 0
       atime0: 0
-      atime1: 65535
-      atime2: 0
-      atime3: 0
-      atime4: 0
+      atime1: 64764
+      atime2: 28334
+      atime3: 28334
+      atime4: 28334
       atime5: 0
       atime6: 0
       atime7: 0
@@ -125,7 +125,7 @@ TrailRenderer:
       m_NumColorKeys: 2
       m_NumAlphaKeys: 2
     numCornerVertices: 0
-    numCapVertices: 0
+    numCapVertices: 5
     alignment: 0
     textureMode: 0
     shadowBias: 0.5

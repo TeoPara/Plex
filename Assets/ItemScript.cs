@@ -18,6 +18,9 @@ public class ItemScript : MonoBehaviour
     }
 
     public float LastDropped = 0f;
+
+    public int AmmoLeft;
+
     public void Interact()
     {
         if (ItemName == "landmine")
@@ -57,5 +60,12 @@ public class ItemScript : MonoBehaviour
                 yield return new WaitForEndOfFrame();
             }
         }
+    }
+
+
+    private void OnDestroy()
+    {
+        if (Gamemode.SpawnedItems.Contains(gameObject))
+            Gamemode.SpawnedItems.Remove(gameObject);
     }
 }

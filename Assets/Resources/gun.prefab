@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 2824774556634321921}
   - component: {fileID: 4368469444846145271}
   - component: {fileID: 1188787536727729385}
+  - component: {fileID: 2069908493500261471}
   m_Layer: 3
   m_Name: gun
   m_TagString: item
@@ -95,7 +96,7 @@ BoxCollider2D:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5351318325335033616}
-  m_Enabled: 0
+  m_Enabled: 1
   m_Density: 1
   m_Material: {fileID: 0}
   m_IsTrigger: 0
@@ -147,11 +148,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2fe5478563729e1468172e28384f17ac, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  IsBeingHeld: 0
   Pickupable: 1
   ItemName: sniper
   InteractCooldownTime: 1
   InInteractCooldown: 0
   LastDropped: 0
+  AmmoLeft: 5
 --- !u!114 &1188787536727729385
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -169,3 +172,37 @@ MonoBehaviour:
   visible: 0
   m_AssetId: 6dfc30b5ab74a27448542e290c715247
   hasSpawned: 0
+--- !u!114 &2069908493500261471
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5351318325335033616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2f74aedd71d9a4f55b3ce499326d45fb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  syncMode: 0
+  syncInterval: 0.1
+  clientAuthority: 0
+  sendInterval: 0.05
+  syncPosition: 1
+  syncRotation: 1
+  syncScale: 0
+  interpolatePosition: 1
+  interpolateRotation: 1
+  interpolateScale: 0
+  bufferTimeMultiplier: 1
+  bufferSizeLimit: 64
+  catchupThreshold: 4
+  catchupMultiplier: 0.1
+  onlySyncOnChange: 1
+  bufferResetMultiplier: 5
+  positionSensitivity: 0.01
+  rotationSensitivity: 0.01
+  scaleSensitivity: 0.01
+  showGizmos: 0
+  showOverlay: 0
+  overlayColor: {r: 0, g: 0, b: 0, a: 0.5}
