@@ -7,6 +7,7 @@ using System.Linq;
 public class Gamemode : NetworkBehaviour
 {
     public static List<GameObject> SpawnedItems = new List<GameObject>();
+    public static List<GameObject> PlayerList;
     void Start()
     {
         StartCoroutine(wait());
@@ -23,10 +24,6 @@ public class Gamemode : NetworkBehaviour
             }
         }
     }
-
-
-    //
-
 
     [SyncVar(hook = nameof(lehook))]
     public string CurrentlyActiveMap = " ";
@@ -74,7 +71,7 @@ public class Gamemode : NetworkBehaviour
 
             // get players
 
-            List<GameObject> PlayerList = GameObject.FindGameObjectsWithTag("player").ToList();
+            PlayerList = GameObject.FindGameObjectsWithTag("player").ToList();
 
             // reset player health
             foreach (GameObject player in PlayerList)
@@ -122,10 +119,10 @@ public class Gamemode : NetworkBehaviour
             {
                 while (true)
                 {
-                    GameObject spawned = Instantiate(Resources.Load<GameObject>(new List<string>() { "gun", "gun2", "gun3" }[Random.Range(0, 3)]), itemSpawns[UnityEngine.Random.Range(0, itemSpawns.Count)].position, Quaternion.identity);
+                    GameObject spawned = Instantiate(Resources.Load<GameObject>(new List<string>() { "gun", "gun2", "gun3", "blade", "landmine", "potion", "nade"  }[Random.Range(0, 7)]), itemSpawns[UnityEngine.Random.Range(0, itemSpawns.Count)].position, Quaternion.identity);
                     NetworkServer.Spawn(spawned);
                     SpawnedItems.Add(spawned);
-                    yield return new WaitForSeconds(10f);
+                    yield return new WaitForSeconds(2f);
                 }
             }
 
@@ -151,6 +148,10 @@ public class Gamemode : NetworkBehaviour
 
                 // stop item spawning
                 StopCoroutine(startedItemSpawnLoop);
+
+                // drop all items
+                foreach (GameObject c in PlayerList)
+                    c.GetComponent<Controls>().RpcDropItem();
 
                 // destroy all spawned items
                 foreach (GameObject c in SpawnedItems)

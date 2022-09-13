@@ -27,12 +27,25 @@ public class ItemScript : MonoBehaviour
         {
             GameObject created = GameObject.Instantiate(Resources.Load<GameObject>("landmine_placed"), transform.position, Quaternion.identity);
             created.GetComponent<ItemScript>().StartLandmine();
+            Gamemode.SpawnedItems.Add(created);
+        }
+        if (ItemName == "blade")
+        {
+            StartCoroutine(anim());
+            IEnumerator anim()
+            {
+                GameObject created = Instantiate(Resources.Load<GameObject>("Newmoon"), transform.position, transform.rotation);
+                if (transform.localScale.x == -1)
+                    created.transform.localScale = new Vector3(-3f, 3, 1);
+
+                yield return new WaitForSeconds(0.5f);
+            }
         }
     }
 
     void Update()
     {
-        if (GetComponent<Rigidbody2D>().simulated && Physics2D.OverlapPoint(GetComponent<Rigidbody2D>().ClosestPoint(new Vector2(transform.position.x, transform.position.y - 10f)) + new Vector2(0,-0.1f)) != null)
+        if (Pickupable && GetComponent<Rigidbody2D>().simulated && Physics2D.OverlapPoint(GetComponent<Rigidbody2D>().ClosestPoint(new Vector2(transform.position.x, transform.position.y - 10f)) + new Vector2(0,-0.1f)) != null)
             GetComponent<Rigidbody2D>().velocity /= 1.05f;
     }
 

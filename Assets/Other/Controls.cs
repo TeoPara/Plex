@@ -6,6 +6,7 @@ using UnityEngine;
 using Mirror;
 using System.Linq;
 using TMPro;
+using System.Linq.Expressions;
 
 public class Controls : NetworkBehaviour
 {
@@ -121,9 +122,9 @@ public class Controls : NetworkBehaviour
     bool LastFloored = true;
     void Update()
     {
+        transform.eulerAngles = new Vector3(0, 0, 0);
         if (!isLocalPlayer)
             return;
-
 
         // Inputs
 
@@ -168,6 +169,13 @@ public class Controls : NetworkBehaviour
             {
                 Destroy(GameObject.Instantiate(Resources.Load<GameObject>("bash"), transform.position, Quaternion.identity), 0.2f);
                 StartCoroutine(BashCooldown());
+                foreach (GameObject c in GameObject.FindGameObjectsWithTag("player"))
+                {
+                    if (c == gameObject) continue;
+
+                    if (Vector3.Distance(c.transform.position, transform.position) < 1.75f)
+                        c.GetComponent<Controls>().CmdDropItem();
+                }
             }
         }
         LastFloored = Floored;
@@ -303,18 +311,32 @@ public class Controls : NetworkBehaviour
             }
 
             // shooting le gun
-            if (Input.GetMouseButton(0) && HeldItem.GetComponent<ItemScript>().InInteractCooldown == false && HeldItem.GetComponent<ItemScript>().AmmoLeft > 0)
+            if (Input.GetMouseButton(0) && HeldItem.GetComponent<ItemScript>().InInteractCooldown == false)
             {
                 StartCoroutine(HeldItem.GetComponent<ItemScript>().InteractCooldown());
-                if (HeldItem.GetComponent<ItemScript>().ItemName == "sniper")
+
+                if (HeldItem.GetComponent<ItemScript>().ItemName == "sniper" && HeldItem.GetComponent<ItemScript>().AmmoLeft > 0)
                     CmdShootGun(HeldItem.transform.position, cursorpos, "sniper", HeldItem);
-                if (HeldItem.GetComponent<ItemScript>().ItemName == "auto")
+                if (HeldItem.GetComponent<ItemScript>().ItemName == "auto" && HeldItem.GetComponent<ItemScript>().AmmoLeft > 0)
                     CmdShootGun(HeldItem.transform.position, cursorpos, "auto", HeldItem);
-                if (HeldItem.GetComponent<ItemScript>().ItemName == "shotgun")
+                if (HeldItem.GetComponent<ItemScript>().ItemName == "shotgun" && HeldItem.GetComponent<ItemScript>().AmmoLeft > 0)
                     CmdShootGun(HeldItem.transform.position, cursorpos, "shotgun", HeldItem);
+
                 if (HeldItem.GetComponent<ItemScript>().ItemName == "landmine")
                 {
                     CmdInteractLandmine();
+                }
+                if (HeldItem.GetComponent<ItemScript>().ItemName == "blade")
+                {
+                    CmdInteractBlade();
+                }
+                if (HeldItem.GetComponent<ItemScript>().ItemName == "potion")
+                {
+                    CmdInteractPotion();
+                }
+                if (HeldItem.GetComponent<ItemScript>().ItemName == "nade")
+                {
+                    CmdInteractNade(Camera.main.ScreenToWorldPoint(Input.mousePosition));
                 }
 
                 StartCoroutine(waitupdatecounter(HeldItem));
@@ -339,9 +361,115 @@ public class Controls : NetworkBehaviour
         }
     }
 
+
+    [Command]
+    void CmdInteractNade(Vector3 pos)
+    {
+        RpcInteractNade(pos);
+    }
+    [ClientRpc]
+    void RpcInteractNade(Vector3 pos)
+    {
+        GameObject a = HeldItem;
+
+        GetComponent<NetworkTransformChild>().enabled = false;
+        GetComponent<NetworkTransformChild>().target = transform;
+        HeldItem.transform.SetParent(null);
+        HeldItem.GetComponent<ItemScript>().IsBeingHeld = false;
+        HeldItem.GetComponent<Rigidbody2D>().simulated = true;
+        HeldItem.GetComponent<Rigidbody2D>().velocity = rb.velocity;
+        HeldItem.GetComponent<BoxCollider2D>().enabled = true;
+        HeldItem.GetComponent<ItemScript>().LastDropped = Time.time;
+
+        HeldItem.GetComponent<NetworkTransform>().enabled = true;
+
+        HeldItem = null;
+
+        a.GetComponent<ItemScript>().Pickupable = false;
+        a.GetComponent<Rigidbody2D>().AddForce((pos - a.transform.position).normalized * 20f, ForceMode2D.Impulse);
+
+        StartCoroutine(wait());
+        IEnumerator wait()
+        {
+            yield return new WaitForSeconds(1f);
+        
+            if (isServer)
+            {
+                foreach (GameObject c in GameObject.FindGameObjectsWithTag("player"))
+                {
+                    if (Vector3.Distance(c.transform.position, a.transform.position) < 3f)
+                        RpcSetHealth(c, c.GetComponent<Health>().HealthAmount - 50f, "none");
+                }
+            }
+
+            if (a != null)
+            {
+                GameObject created = Instantiate(Resources.Load<GameObject>("Explosion"), a.transform.position, Quaternion.identity);
+                created.GetComponent<ParticleSystem>().Play();
+                Destroy(created, 5);
+                Destroy(a);
+            }
+        }
+    }
+
+
+
+    [Command]
+    void CmdInteractPotion()
+    {
+        RpcSetHealth(gameObject, GetComponent<Health>().HealthAmount + 50f, "none");
+        RpcInteractPotion();
+    }
+    [ClientRpc] void RpcInteractPotion()
+    {
+        GameObject toDestroy = HeldItem;
+        GetComponent<NetworkTransformChild>().enabled = false;
+        GetComponent<NetworkTransformChild>().target = transform;
+        HeldItem.transform.SetParent(null);
+        HeldItem = null;
+        Destroy(toDestroy);
+    }
+
+
+
+    [Command] void CmdInteractBlade()
+    {
+        RpcInteractBlade();
+
+        foreach (GameObject go in GameObject.FindGameObjectsWithTag("player"))
+        {
+            if (go == gameObject) continue;
+
+            if (Vector3.Distance(transform.position, go.transform.position) < 2.5f)
+            {
+                go.GetComponent<Health>().RpcSetHealth(go.GetComponent<Health>().HealthAmount - 25f);
+            }
+        }
+    }
+
+    [ClientRpc] void RpcInteractBlade()
+    {
+        if (HeldItem == null) return;
+        HeldItem.GetComponent<ItemScript>().Interact();
+        HeldItem.GetComponent<ItemScript>().AmmoLeft--;
+        StartCoroutine(HeldItem.GetComponent<ItemScript>().InteractCooldown());
+        if (HeldItem.GetComponent<ItemScript>().AmmoLeft == 0)
+        {
+            GameObject toDestroy = HeldItem;
+            GetComponent<NetworkTransformChild>().enabled = false;
+            GetComponent<NetworkTransformChild>().target = transform;
+            HeldItem.transform.SetParent(null);
+            HeldItem = null;
+            Destroy(toDestroy);
+        }
+    }
+
     [Command] void CmdInteractLandmine() => RpcInteractLandmine();
     [ClientRpc] void RpcInteractLandmine()
     {
+        if (HeldItem == null)
+            return;
+
         HeldItem.GetComponent<ItemScript>().Interact();
         GameObject todestroy = HeldItem;
 
@@ -384,6 +512,9 @@ public class Controls : NetworkBehaviour
     [Command] void CmdFlipGunXScale(bool a) => RpcFlipGunXScale(a);
     [ClientRpc] void RpcFlipGunXScale(bool a)
     {
+        if (HeldItem == null)
+            return;
+
         if (a)
             HeldItem.transform.localScale = new Vector3(-1f, 1f, 1f);
         else
@@ -391,10 +522,13 @@ public class Controls : NetworkBehaviour
     }
 
 
-    [Command] void CmdDropItem() => RpcDropItem();
+    [Command (requiresAuthority = false)] void CmdDropItem() => RpcDropItem();
     [ClientRpc]
-    void RpcDropItem()
+    public void RpcDropItem()
     {
+        if (HeldItem == null)
+            return;
+
         GetComponent<NetworkTransformChild>().enabled = false;
         GetComponent<NetworkTransformChild>().target = transform;
         HeldItem.transform.SetParent(null);
@@ -464,15 +598,15 @@ public class Controls : NetworkBehaviour
         {
             case "auto":
                 speed = 25f;
-                damage = 10f;
+                damage = 4.5f;
                 break;
             case "sniper":
                 speed = 50f;
-                damage = 25f;
+                damage = 18f;
                 break;
             case "shotgun":
                 speed = 30f;
-                damage = 15f;
+                damage = 18f;
                 break;
         }
 
@@ -502,8 +636,11 @@ public class Controls : NetworkBehaviour
                 {
                     if (c == gameObject)
                         continue;
-                    if (c.GetComponent<BoxCollider2D>().bounds.Contains(bullet.transform.position))
+                    
+                    if (Vector3.Distance(c.transform.position, bullet.transform.position) < 1.5f)
                     {
+                        Debug.Log("bullet hit...");
+
                         RpcSetHealth(c, c.GetComponent<Health>().HealthAmount - damage, "none");
 
                         Destroy(bullet);
@@ -512,7 +649,7 @@ public class Controls : NetworkBehaviour
                 }
                 foreach(GameObject c in GameObject.FindObjectsOfType<GameObject>().Where(c => c.GetComponent<Break>() != null))
                 {
-                    if (c.GetComponent<BoxCollider2D>().bounds.Contains(bullet.transform.position))
+                    if (c.GetComponent<BoxCollider2D>().OverlapPoint(bullet.transform.position))
                     {
                         RpcSetHealthPlatform(c.transform.position, c.GetComponent<Break>().Damage - damage);
 
@@ -547,7 +684,7 @@ public class Controls : NetworkBehaviour
     [ClientRpc]
     void RpcDecreaseAmmo(GameObject gun)
     {
-        gun.GetComponent<ItemScript>().AmmoLeft -= 1;
+        if (gun == null) return; gun.GetComponent<ItemScript>().AmmoLeft -= 1;
         if (gun.GetComponent<ItemScript>().AmmoLeft == 0)
         {
             if (HeldItem == gun)
@@ -690,7 +827,10 @@ public class Controls : NetworkBehaviour
 
 
 
-
+    private void OnDestroy()
+    {
+        Gamemode.PlayerList.Remove(gameObject);
+    }
 
     IEnumerator Animation(List<Sprite> sprites, float frametime = 0.05f, bool once = false)
     {
