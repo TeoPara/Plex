@@ -24,6 +24,10 @@ public class Gamemode : NetworkBehaviour
         }
     }
 
+
+    //
+
+
     [SyncVar(hook = nameof(lehook))]
     public string CurrentlyActiveMap = " ";
     void lehook(string oldValue, string newValue)
