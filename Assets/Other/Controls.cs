@@ -54,17 +54,42 @@ public class Controls : NetworkBehaviour
         if (isLocalPlayer)
             CmdGetRandomColor();
         sr.color = new Color(RColor, GColor, BColor);
+        
+        if (OurScoreBoardText != null)
+        {
+            OurScoreBoardText.GetComponent<TMP_Text>().color = new Color(RColor, GColor, BColor);
+            OurScoreBoardText.transform.SetParent(GameObject.Find("Canvas").transform.Find("Scoreboard"));
+            OurScoreBoardText.GetComponent<TMP_Text>().text = OurScoreBoardTextWins.ToString();
+        }
     }
     [Command] void CmdGetRandomColor()
     {
-        RpcSetColor(UnityEngine.Random.Range(0f, 1f), UnityEngine.Random.Range(0f, 1f), UnityEngine.Random.Range(0f, 1f));
+        float r = UnityEngine.Random.Range(0f, 1f);
+        float g = UnityEngine.Random.Range(0f, 1f);
+        float b = UnityEngine.Random.Range(0f, 1f);
+
+        GameObject created = GameObject.Instantiate(Resources.Load<GameObject>("template"), GameObject.Find("Canvas").transform.Find("Scoreboard"));
+        NetworkServer.Spawn(created);
+        
+        OurScoreBoardText = created;
+
+        RpcSetColor(r, g, b, created);
     }
-    [ClientRpc] void RpcSetColor(float r, float g, float b)
+
+    [SyncVar]
+    public GameObject OurScoreBoardText = null;
+    [SyncVar]
+    public int OurScoreBoardTextWins = 0;
+
+    [ClientRpc] void RpcSetColor(float r, float g, float b, GameObject created)
     {
         RColor = r;
         GColor = g;
         BColor = b;
         sr.color = new Color(r, g, b);
+
+        created.GetComponent<TMP_Text>().color = new Color(r, g, b);
+        created.transform.SetParent(GameObject.Find("Canvas").transform.Find("Scoreboard"));
     }
 
 
@@ -113,8 +138,18 @@ public class Controls : NetworkBehaviour
     IEnumerator BashCooldown()
     {
         if (InBashCooldown) yield break;
+
+        TMP_Text t = GameObject.Find("Canvas").transform.Find("Bash Cooldown").GetComponent<TMPro.TMP_Text>();
+
         InBashCooldown = true;
-        yield return new WaitForSeconds(3f);
+
+        t.text = "3";
+        for (int i = 0; i <= 2f; i++)
+        {
+            yield return new WaitForSeconds(1f);
+            t.text = (2 - i).ToString();
+        }
+
         InBashCooldown = false;
     }
 
@@ -647,11 +682,12 @@ public class Controls : NetworkBehaviour
                         yield break;
                     }
                 }
-                foreach(GameObject c in GameObject.FindObjectsOfType<GameObject>().Where(c => c.GetComponent<Break>() != null))
+                foreach(GameObject c in GameObject.FindGameObjectsWithTag("platform").Where(c => c.activeInHierarchy && c.GetComponent<SpriteRenderer>().enabled))
                 {
                     if (c.GetComponent<BoxCollider2D>().OverlapPoint(bullet.transform.position))
                     {
-                        RpcSetHealthPlatform(c.transform.position, c.GetComponent<Break>().Damage - damage);
+                        if (c.GetComponent<Break>() != null)
+                            RpcSetHealthPlatform(c.transform.position, c.GetComponent<Break>().Damage - damage);
 
                         Destroy(bullet);
                         yield break;
@@ -829,9 +865,11 @@ public class Controls : NetworkBehaviour
 
     private void OnDestroy()
     {
-        Gamemode.PlayerList.Remove(gameObject);
+        if (Gamemode.PlayerList != null)
+            Gamemode.PlayerList.Remove(gameObject);
+        Destroy(OurScoreBoardText);
     }
-
+    
     IEnumerator Animation(List<Sprite> sprites, float frametime = 0.05f, bool once = false)
     {
         sr.sprite = sprites[0];

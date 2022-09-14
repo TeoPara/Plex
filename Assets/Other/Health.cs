@@ -15,7 +15,7 @@ public class Health : NetworkBehaviour
             
             if (_healthAmount > 0 && value <= 0f)
             {
-                GameObject created = Instantiate(transform.Find("Particle System").gameObject, transform.position, Quaternion.identity);
+                GameObject created = Instantiate(Resources.Load<GameObject>("Bounds Gore").gameObject, transform.position, Quaternion.identity);
                 created.SetActive(true);
                 created.GetComponent<ParticleSystem>().Play();
                 Destroy(created, 5f);

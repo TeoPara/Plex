@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using Mirror;
 using System.Linq;
+using TMPro;
+using System;
 
 public class Gamemode : NetworkBehaviour
 {
@@ -69,6 +71,8 @@ public class Gamemode : NetworkBehaviour
             GameObject.Find("Maps").transform.Find(CurrentMap.gameObject.name).gameObject.SetActive(true);
             CurrentlyActiveMap = CurrentMap.gameObject.name;
 
+            RepairPlatforms();
+
             // get players
 
             PlayerList = GameObject.FindGameObjectsWithTag("player").ToList();
@@ -119,10 +123,10 @@ public class Gamemode : NetworkBehaviour
             {
                 while (true)
                 {
-                    GameObject spawned = Instantiate(Resources.Load<GameObject>(new List<string>() { "gun", "gun2", "gun3", "blade", "landmine", "potion", "nade"  }[Random.Range(0, 7)]), itemSpawns[UnityEngine.Random.Range(0, itemSpawns.Count)].position, Quaternion.identity);
+                    GameObject spawned = Instantiate(Resources.Load<GameObject>(new List<string>() { "gun", "gun2", "gun3", "blade", "landmine", "potion", "nade"  }[UnityEngine.Random.Range(0, 7)]), itemSpawns[UnityEngine.Random.Range(0, itemSpawns.Count)].position, Quaternion.identity);
                     NetworkServer.Spawn(spawned);
                     SpawnedItems.Add(spawned);
-                    yield return new WaitForSeconds(2f);
+                    yield return new WaitForSeconds(5f);
                 }
             }
 
@@ -139,8 +143,18 @@ public class Gamemode : NetworkBehaviour
                         if (c.GetComponent<Health>().HealthAmount > 0f)
                             count++;
                     if (PlayerList.Count > 1 && count < 2)
+                    {
+                        Debug.Log("Calling increasescoreborad text");
+
+                        PlayerList.Find(c => c.GetComponent<Health>().HealthAmount > 0f).GetComponent<Controls>().OurScoreBoardTextWins += 1;
+                        IncreaseScoreBoardText(PlayerList.Find(c => c.GetComponent<Health>().HealthAmount > 0f));
+
                         break;
+                    }
+
                     else if (PlayerList.Count < 2 && count < 1)
+                        break;
+                    else if (PlayerList.Count < 2 && NetworkServer.connections.Count > 1)
                         break;
                 }
 
@@ -164,6 +178,27 @@ public class Gamemode : NetworkBehaviour
                 else
                     StartNextRound(AllMaps.IndexOf(CurrentMap) + 1);
             }
+        }
+    }
+
+
+    [ClientRpc]
+    void IncreaseScoreBoardText(GameObject player)
+    {
+        Debug.Log("got increasescoreboard text. player is " + (player?.name ?? "null") + ". His scoreboard text is " + (player.GetComponent<Controls>().OurScoreBoardText.name ?? "null"));
+        player.GetComponent<Controls>().OurScoreBoardText.GetComponent<TMP_Text>().text = (Convert.ToInt32(player.GetComponent<Controls>().OurScoreBoardText.GetComponent<TMP_Text>().text) + 1).ToString();
+    }
+
+    [ClientRpc]
+    void RepairPlatforms()
+    {
+        // repair platforms
+        foreach (GameObject c in GameObject.FindGameObjectsWithTag("platform").Where(c => c.GetComponent<Break>() != null))
+        {
+            c.GetComponent<SpriteRenderer>().sprite = c.GetComponent<Break>().SpriteRepaired;
+            c.GetComponent<SpriteRenderer>().enabled = true;
+            c.GetComponent<BoxCollider2D>().enabled = true;
+            c.GetComponent<Break>().Damage = 25f;
         }
     }
 

@@ -6,6 +6,9 @@ public class Break : MonoBehaviour
 {
     [SerializeField]
     Sprite BrokeTexture;
+    
+    public Sprite SpriteRepaired;
+
     [SerializeField]
     GameObject Pieces;
     public float Damage
@@ -14,7 +17,7 @@ public class Break : MonoBehaviour
         set
         {
             _damageAmount = value;
-            if (_damageAmount <= 50 && this.GetComponent<SpriteRenderer>().sprite != BrokeTexture)
+            if (_damageAmount <= 25f/2f && this.GetComponent<SpriteRenderer>().sprite != BrokeTexture)
             {
                 this.GetComponent<SpriteRenderer>().sprite = BrokeTexture;
             }
@@ -22,9 +25,11 @@ public class Break : MonoBehaviour
             {
                 GameObject pieces = Instantiate(Pieces, this.transform.position, Quaternion.Euler(0, 0, 0));
                 Destroy(pieces, 3);
-                Destroy(this.gameObject);
+
+                GetComponent<BoxCollider2D>().enabled = false;
+                GetComponent<SpriteRenderer>().enabled = false;
             }
         }
     }
-    float _damageAmount = 100f;
+    float _damageAmount = 25;
 }
