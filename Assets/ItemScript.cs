@@ -43,10 +43,17 @@ public class ItemScript : MonoBehaviour
         }
     }
 
+
+    Rigidbody2D rb;
+    void Awake()
+    {
+        rb = GetComponent<Rigidbody2D>();
+    }
+    
     void Update()
     {
-        if (Pickupable && GetComponent<Rigidbody2D>().simulated && Physics2D.OverlapPoint(GetComponent<Rigidbody2D>().ClosestPoint(new Vector2(transform.position.x, transform.position.y - 10f)) + new Vector2(0,-0.1f)) != null)
-            GetComponent<Rigidbody2D>().velocity /= 1.05f;
+        if (Pickupable && rb.simulated && Physics2D.OverlapPoint(rb.ClosestPoint(new Vector2(transform.position.x, transform.position.y - 10f)) + new Vector2(0,-0.1f)) != null)
+            rb.velocity /= 1.05f;
     }
 
     void StartLandmine()

@@ -124,11 +124,11 @@ public class Controls : NetworkBehaviour
 
         InDashCooldown = true;
 
-        t.text = "Dash Cooldown: 3";
+        t.text = "3";
         for (int i = 0; i <= 2f; i++)
         {
             yield return new WaitForSeconds(1f);
-            t.text = "Dash Cooldown: " + ((2-i));
+            t.text = (2-i).ToString();
         }
 
         InDashCooldown = false;
@@ -346,33 +346,26 @@ public class Controls : NetworkBehaviour
             }
 
             // shooting le gun
-            if (Input.GetMouseButton(0) && HeldItem.GetComponent<ItemScript>().InInteractCooldown == false)
+            ItemScript IS = HeldItem.GetComponent<ItemScript>();
+            if (Input.GetMouseButton(0) && IS.InInteractCooldown == false)
             {
-                StartCoroutine(HeldItem.GetComponent<ItemScript>().InteractCooldown());
+                StartCoroutine(IS.InteractCooldown());
 
-                if (HeldItem.GetComponent<ItemScript>().ItemName == "sniper" && HeldItem.GetComponent<ItemScript>().AmmoLeft > 0)
+                if (IS.ItemName == "sniper" && IS.AmmoLeft > 0)
                     CmdShootGun(HeldItem.transform.position, cursorpos, "sniper", HeldItem);
-                if (HeldItem.GetComponent<ItemScript>().ItemName == "auto" && HeldItem.GetComponent<ItemScript>().AmmoLeft > 0)
+                if (IS.ItemName == "auto" && IS.AmmoLeft > 0)
                     CmdShootGun(HeldItem.transform.position, cursorpos, "auto", HeldItem);
-                if (HeldItem.GetComponent<ItemScript>().ItemName == "shotgun" && HeldItem.GetComponent<ItemScript>().AmmoLeft > 0)
+                if (IS.ItemName == "shotgun" && IS.AmmoLeft > 0)
                     CmdShootGun(HeldItem.transform.position, cursorpos, "shotgun", HeldItem);
 
-                if (HeldItem.GetComponent<ItemScript>().ItemName == "landmine")
-                {
+                if (IS.ItemName == "landmine")
                     CmdInteractLandmine();
-                }
-                if (HeldItem.GetComponent<ItemScript>().ItemName == "blade")
-                {
+                if (IS.ItemName == "blade")
                     CmdInteractBlade();
-                }
-                if (HeldItem.GetComponent<ItemScript>().ItemName == "potion")
-                {
+                if (IS.ItemName == "potion")
                     CmdInteractPotion();
-                }
-                if (HeldItem.GetComponent<ItemScript>().ItemName == "nade")
-                {
+                if (IS.ItemName == "nade")
                     CmdInteractNade(Camera.main.ScreenToWorldPoint(Input.mousePosition));
-                }
 
                 StartCoroutine(waitupdatecounter(HeldItem));
                 IEnumerator waitupdatecounter(GameObject gun)
@@ -405,10 +398,10 @@ public class Controls : NetworkBehaviour
     [ClientRpc]
     void RpcInteractNade(Vector3 pos)
     {
-        GameObject a = HeldItem;
 
-        GetComponent<NetworkTransformChild>().enabled = false;
-        GetComponent<NetworkTransformChild>().target = transform;
+        NetworkTransformChild ntc = GetComponent<NetworkTransformChild>();
+        ntc.enabled = false;
+        ntc.target = transform;
         HeldItem.transform.SetParent(null);
         HeldItem.GetComponent<ItemScript>().IsBeingHeld = false;
         HeldItem.GetComponent<Rigidbody2D>().simulated = true;
@@ -418,6 +411,7 @@ public class Controls : NetworkBehaviour
 
         HeldItem.GetComponent<NetworkTransform>().enabled = true;
 
+        GameObject a = HeldItem;
         HeldItem = null;
 
         a.GetComponent<ItemScript>().Pickupable = false;
